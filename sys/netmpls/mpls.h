@@ -33,8 +33,12 @@
 #ifndef _NETMPLS_MPLS_H_
 #define _NETMPLS_MPLS_H_
 
-#include <net/route/route_ctl.h>
+#include <sys/socket.h>
 #include <sys/types.h>
+
+#include <net/route.h>
+#include <net/route/route_ctl.h>
+#include <net/route/route_var.h>
 
 /*
  * Structure of a SHIM header.
@@ -170,5 +174,7 @@ struct rtentry *	fib_mpls_lookup_rt(uint32_t fibnum,
 		    struct sockaddr *dst,
 		    uint32_t flags,
 		    struct route_nhop_data *rnd);
+
+int in4_cksum(struct mbuf *, u_int8_t, int, int);
 
 #endif /* _KERNEL */

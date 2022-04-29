@@ -35,6 +35,8 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 
+#include <machine/in_cksum.h>
+
 #ifdef INET6
 #include <netinet/ip6.h>
 #endif /* INET6 */
@@ -444,7 +446,7 @@ mpls_do_error(struct mbuf *m, int type, int code, int destmtu)
 	M_PREPEND(m, (nstk + 1) * sizeof(*shim), M_NOWAIT);
 	if (m == NULL)
 		return (NULL);
-	m_copyback(m, 0, (nstk + 1) * sizeof(*shim), stack, M_NOWAIT);
+	m_copyback(m, 0, (nstk + 1) * sizeof(*shim), (c_caddr_t)stack);
 
 	/* change TTL to default */
 	shim = mtod(m, struct shim_hdr *);
