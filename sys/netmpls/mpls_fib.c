@@ -30,12 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "mpls.h"
-
 /* TODO: Clean #includes */
-
-#include "opt_inet.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/in_fib.h>
 
+#include "mpls.h"
+
 #ifdef INET
 
 /*
@@ -74,7 +71,7 @@ __FBSDID("$FreeBSD$");
  * Note: rnd_nhop can actually be the nexthop group.
  */
 struct rtentry *
-fib_mpls_lookup_rt(uint32_t fibnum, struct in_addr dst, uint32_t flags,
+fib_mpls_lookup_rt(uint32_t fibnum, struct sockaddr *dst, uint32_t flags,
     struct route_nhop_data *rnd)
 {
 	RIB_RLOCK_TRACKER;
@@ -87,17 +84,10 @@ fib_mpls_lookup_rt(uint32_t fibnum, struct in_addr dst, uint32_t flags,
 	if (rh == NULL)
 		return (NULL);
 
-	/* Prepare lookup key */
-	struct sockaddr_in sin = {
-		.sin_family = AF_MPLS,
-		.sin_len = sizeof(struct sockaddr_in),
-		.sin_addr = dst,
-	};
-
 	rt = NULL;
 	if (!(flags & NHR_UNLOCKED))
 		RIB_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
+	rn = rh->rnh_matchaddr((void *)dst, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rt = (struct rtentry *)rn;
 		rnd->rnd_nhop = rt->rt_nhop;

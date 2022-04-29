@@ -33,6 +33,7 @@
 #ifndef _NETMPLS_MPLS_H_
 #define _NETMPLS_MPLS_H_
 
+#include <net/route/route_ctl.h>
 #include <sys/types.h>
 
 /*
@@ -166,8 +167,8 @@ int		 mpls_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 void		 mpls_input(struct ifnet *, struct mbuf *);
 
 struct rtentry *	fib_mpls_lookup_rt(uint32_t fibnum,
-		    struct in_addr dst,
+		    struct sockaddr *dst,
 		    uint32_t flags,
-		    struct route_nhop_data *rnd)
+		    struct route_nhop_data *rnd);
 
 #endif /* _KERNEL */
