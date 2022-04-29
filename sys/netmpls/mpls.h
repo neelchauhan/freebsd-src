@@ -175,6 +175,5 @@ struct rtentry *	fib_mpls_lookup_rt(uint32_t fibnum,
 		    struct route_nhop_data *rnd);
 
 uint16_t	ip_randomid(void);
-int 		in4_cksum(struct mbuf *, u_int8_t, int, int);
 
 #endif /* _KERNEL */

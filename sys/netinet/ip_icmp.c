@@ -206,7 +206,7 @@ kmod_icmpstat_inc(int statnum)
  * Generate an error packet of type error
  * in response to bad packet ip.
  */
-void
+struct mbuf *
 icmp_do_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 {
 	struct ip *oip, *nip;
@@ -985,17 +985,18 @@ icmp_do_exthdr(struct mbuf *m, u_int16_t class, u_int8_t ctype, void *buf,
 	hdr.ieo.ieo_cnum = class;
 	hdr.ieo.ieo_ctype = ctype;
 
-	if (m_copyback(m, hlen + off, sizeof(hdr), &hdr, M_NOWAIT) ||
-	    m_copyback(m, hlen + off + sizeof(hdr), len, buf, M_NOWAIT)) {
-		m_freem(m);
-		return (ENOBUFS);
-	}
+	m_copyback(m, hlen + off, sizeof(hdr), (c_caddr_t)&hdr);
 
 	/* calculate checksum */
 	n = m_getptr(m, hlen + off, &off);
 	if (n == NULL)
 		panic("icmp_do_exthdr: m_getptr failure");
 	ieh = (struct icmp_ext_hdr *)(mtod(n, caddr_t) + off);
+	ieh->ieh_cksum = in_cksum_mbuf(n, 0, off, sizeof(hdr) + len);
+
+	ip->ip_len = htons(m->m_pkthdr.len);
+
+	return (0);
 }
 
 /*

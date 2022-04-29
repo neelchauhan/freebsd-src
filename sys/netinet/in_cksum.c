@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip_var.h>
 #include <machine/in_cksum.h>
 
 /*
@@ -182,6 +183,49 @@ in_cksumdata(const void *buf, int len)
 		sum += (u_int64_t) (in_masks[len] & *lw);
 	REDUCE32;
 	return sum;
+}
+
+#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
+#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; (void)ADDCARRY(sum);}
+
+int
+in_cksum_mbuf(struct mbuf *m, u_int8_t nxt, int off, int len)
+{
+	union {
+		struct ipovly ipov;
+		u_int16_t w[10];
+	} u;
+	union {
+		u_int16_t s[2];
+		u_int32_t l;
+	} l_util;
+
+	u_int16_t *w;
+	int psum;
+	int sum = 0;
+
+	if (nxt != 0) {
+		/* pseudo header */
+		if (off < sizeof(struct ipovly))
+			panic("in4_cksum: offset too short");
+		if (m->m_len < sizeof(struct ip))
+			panic("in4_cksum: bad mbuf chain");
+		bzero(&u.ipov, sizeof(u.ipov));
+		u.ipov.ih_len = htons(len);
+		u.ipov.ih_pr = nxt;
+		u.ipov.ih_src = mtod(m, struct ip *)->ip_src;
+		u.ipov.ih_dst = mtod(m, struct ip *)->ip_dst;
+		w = u.w;
+		/* assumes sizeof(ipov) == 20 */
+		sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3]; sum += w[4];
+		sum += w[5]; sum += w[6]; sum += w[7]; sum += w[8]; sum += w[9];
+	}
+
+	psum = in_cksum_skip(m, len + off, off);
+	psum = ~psum & 0xffff;
+	sum += psum;
+	REDUCE;
+	return (~sum & 0xffff);
 }
 
 u_short

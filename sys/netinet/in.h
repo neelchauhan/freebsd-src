@@ -660,6 +660,7 @@ struct in_ifaddr;
 int	 in_broadcast(struct in_addr, struct ifnet *);
 int	 in_ifaddr_broadcast(struct in_addr, struct in_ifaddr *);
 int	 in_canforward(struct in_addr);
+int	 in_cksum_mbuf(struct mbuf *m, u_int8_t nxt, int off, int len);
 int	 in_localaddr(struct in_addr);
 bool	 in_localip(struct in_addr);
 bool	 in_localip_fib(struct in_addr, uint16_t);
@@ -670,6 +671,7 @@ char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
 char	*inet_ntop(int, const void *, char *, socklen_t); /* in libkern */
 int	 inet_pton(int af, const char *, void *); /* in libkern */
 void	 in_ifdetach(struct ifnet *);
+
 
 #define	in_hosteq(s, t)	((s).s_addr == (t).s_addr)
 #define	in_nullhost(x)	((x).s_addr == INADDR_ANY)

@@ -88,6 +88,10 @@ struct icmp {
 	union {
 		u_char ih_pptr;			/* ICMP_PARAMPROB */
 		struct in_addr ih_gwaddr;	/* ICMP_REDIRECT */
+		struct ih_exthdr {	/* RFC4884 extended header */
+			u_int8_t  iex_pad;
+			u_int8_t  iex_length;
+		} ih_exthdr;
 		struct ih_idseq {
 			uint16_t	icd_id;	/* network format */
 			uint16_t	icd_seq; /* network format */
@@ -107,6 +111,7 @@ struct icmp {
 		} ih_rtradv;
 	} icmp_hun;
 #define	icmp_pptr	icmp_hun.ih_pptr
+#define	icmp_length	icmp_hun.ih_exthdr.iex_length
 #define	icmp_gwaddr	icmp_hun.ih_gwaddr
 #define	icmp_id		icmp_hun.ih_idseq.icd_id
 #define	icmp_seq	icmp_hun.ih_idseq.icd_seq
