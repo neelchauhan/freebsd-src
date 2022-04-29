@@ -195,6 +195,7 @@ VNET_DECLARE(u_int, fib_hash_outbound);
 #define	RTF_BROADCAST	0x400000	/* route represents a bcast address */
 #define	RTF_MULTICAST	0x800000	/* route represents a mcast address */
 					/* 0x8000000 and up unassigned */
+#define	RTF_MPLS	0x1000000	/* MPLS routing flag */
 #define	RTF_STICKY	 0x10000000	/* always route dst->src */
 
 /*			0x40000000	   unused, was RTF_RNH_LOCKED */

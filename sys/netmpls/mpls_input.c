@@ -26,6 +26,8 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
+#include <net/route/route_var.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -166,8 +168,8 @@ do_v6:
 
 	ifp = NULL;
 
-	rt = fib_mpls_lookup_rt(m->m_pkthdr.fibnum, smplstosa(smpls), 0, &rnd)
-	if (!rtisvalid(rt)) {
+	rt = fib_mpls_lookup_rt(m->m_pkthdr.fibnum, smplstosa(smpls), 0, &rnd);
+	if (rt == NULL) {
 		/* no entry for this label */
 #ifdef MPLS_DEBUG
 		printf("MPLS_DEBUG: label not found\n");
@@ -176,8 +178,9 @@ do_v6:
 		goto done;
 	}
 
-	rt_mpls = (struct rt_mpls *)rt->rt_llinfo;
-	if (rt_mpls == NULL || (rt->rt_flags & RTF_MPLS) == 0) {
+	rt_mpls = (struct rt_mpls *)rt->rt_nhop->nh_prepend;
+	if (rt_mpls == NULL ||
+	    (nhop_get_rtflags(rt->rt_nhop) & RTF_MPLS) == 0) {
 #ifdef MPLS_DEBUG
 		printf("MPLS_DEBUG: no MPLS information attached\n");
 #endif
@@ -187,7 +190,7 @@ do_v6:
 
 	switch (rt_mpls->mpls_operation) {
 	case MPLS_OP_POP:
-		if (ISSET(rt->rt_flags, RTF_LOCAL)) {
+		if (nhop_get_rtflags(rt->rt_nhop) & RTF_LOCAL) {
 			mpls_input_local(rt, m);
 			goto done;
 		}
@@ -200,15 +203,15 @@ do_v6:
 			break;
 
 		/* last label popped so decide where to push it to */
-		ifp = if_get(rt->rt_ifidx);
+		ifp = rt->rt_nhop->nh_ifp;
 		if (ifp == NULL) {
 			m_freem(m);
 			goto done;
 		}
 
-		KASSERT(rt->rt_gateway);
+		KASSERT(rt->rt_nhop->gw_sa, "MPLS Gateway not defined");
 
-		switch(rt->rt_gateway->sa_family) {
+		switch(rt->rt_nhop->gw_sa.sa_family) {
 		case AF_INET:
 			if ((m = mpls_ip_adjttl(m, ttl)) == NULL)
 				goto done;
@@ -227,10 +230,10 @@ do_v6:
 		}
 
 		/* shortcut sending out the packet */
-		if (!(ifp->if_flags & IFT_MPLS))
-			(*ifp->if_output)(ifp, m, rt->rt_gateway, rt);
-		else
-			(*ifp->if_ll_output)(ifp, m, rt->rt_gateway, rt);
+		//if (!(ifp->if_flags & IFT_MPLS))
+		(*ifp->if_bridge_output)(ifp, m, &rt->rt_nhop->gw_sa, rt);
+		//else
+		//	(*ifp->if_ll_output)(ifp, m, rt.rt_nhop.gw_sa, rt);
 		goto done;
 	case MPLS_OP_PUSH:
 		/* this does not make much sense but it does not hurt */
@@ -251,7 +254,7 @@ do_v6:
 	shim = mtod(m, struct shim_hdr *);
 	shim->shim_label = (shim->shim_label & ~MPLS_TTL_MASK) | htonl(ttl);
 
-	ifp = if_get(rt->rt_ifidx);
+	ifp = rt->rt_nhop->nh_ifp;
 	if (ifp == NULL) {
 		m_freem(m);
 		goto done;
@@ -273,7 +276,8 @@ do_v6:
 		goto done;
 	}
 
-	(*ifp->if_ll_output)(ifp, m, smplstosa(smpls), rt);
+	//(*ifp->if_ll_output)(ifp, m, smplstosa(smpls), rt);
+	(*ifp->if_bridge_output)(ifp, m, smplstosa(smpls), rt);
 done:
 	if_put(ifp);
 	rtfree(rt);
@@ -284,17 +288,17 @@ mpls_input_local(struct rtentry *rt, struct mbuf *m)
 {
 	struct ifnet *ifp;
 
-	ifp = if_get(rt->rt_ifidx);
+	ifp = rt->rt_nhop->nh_ifp;
 	if (ifp == NULL) {
 		m_freem(m);
 		return;
 	}
 
 	/* shortcut sending out the packet */
-	if (!(ifp->if_xflags & IFT_MPLS))
-		(*ifp->if_output)(ifp, m, rt->rt_gateway, rt);
-	else
-		(*ifp->if_ll_output)(ifp, m, rt->rt_gateway, rt);
+	//if (!(ifp->if_flags & IFT_MPLS))
+	(*ifp->if_bridge_output)(ifp, m, &rt->rt_nhop->gw_sa, rt);
+	//else
+	//	(*ifp->if_ll_output)(ifp, m, rt->rt_gateway, rt);
 
 	if_put(ifp);
 }
@@ -391,7 +395,7 @@ mpls_do_error(struct mbuf *m, int type, int code, int destmtu)
 		smpls->smpls_label = shim->shim_label & MPLS_LABEL_MASK;
 
 		rt = rtalloc(smplstosa(smpls), RT_RESOLVE, 0);
-		if (!rtisvalid(rt)) {
+		if (rt == NULL) {
 			rtfree(rt);
 			/* no entry for this label */
 			m_freem(m);
