@@ -184,7 +184,7 @@ destroy_rtentry_epoch(epoch_context_t ctx)
 /*
  * Schedule rtentry deletion
  */
-static void
+void
 rtfree(struct rtentry *rt)
 {
 

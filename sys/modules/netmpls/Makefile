@@ -4,9 +4,10 @@
 CFLAGS += -I${.CURDIR}/../../ -D INET -D VIMAGE
 KMOD	= netmpls
 SRCS	= mpls.h
-SRCS	+= in4_cksum.c
 SRCS	+= mpls_fib.c
 SRCS	+= mpls_input.c
+SRCS	+= mpls_in4_cksum.c
+SRCS	+= mpls_ip_id.c
 SRCS	+= mpls_output.c
 SRCS	+= mpls_proto.c
 SRCS	+= mpls_raw.c

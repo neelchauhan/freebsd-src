@@ -57,6 +57,25 @@ struct icmphdr {
 	u_short	icmp_cksum;		/* ones complement cksum of struct */
 };
 
+struct icmp_ext_hdr {
+	u_int8_t  ieh_version;		/* only high nibble used */
+	u_int8_t  ieh_res;		/* reserved, must be zero */
+	u_int16_t ieh_cksum;		/* ones complement cksum of ext hdr */
+};
+
+#define ICMP_EXT_HDR_VERSION	0x20
+#define ICMP_EXT_HDR_VMASK	0xf0
+#define ICMP_EXT_OFFSET		128
+
+struct icmp_ext_obj_hdr {
+	u_int16_t ieo_length;		/* length of obj incl this header */
+	u_int8_t  ieo_cnum;		/* class number */
+	u_int8_t  ieo_ctype;		/* sub class type */
+};
+
+#define ICMP_EXT_MPLS		1
+#define ICMP_EXT_IFINFO		2
+
 /*
  * Structure of an icmp packet.
  *
@@ -216,9 +235,13 @@ struct icmp {
 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
 
 #ifdef _KERNEL
-void	icmp_error(struct mbuf *, int, int, uint32_t, int);
-int	icmp_input(struct mbuf **, int *, int);
-int	ip_next_mtu(int, int);
+struct mbuf *	icmp_do_error(struct mbuf *, int, int, uint32_t, int);
+int		icmp_do_exthdr(struct mbuf *m, u_int16_t class, u_int8_t ctype,
+		    void *buf, size_t len);
+void		icmp_error(struct mbuf *, int, int, uint32_t, int);
+int		icmp_input(struct mbuf **, int *, int);
+void		icmp_reflect(struct mbuf *m);
+int		ip_next_mtu(int, int);
 #endif
 
 #endif

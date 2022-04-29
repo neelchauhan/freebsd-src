@@ -27,6 +27,7 @@
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
+#include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 
 #include <netinet/in.h>
@@ -278,10 +279,9 @@ do_v6:
 		goto done;
 	}
 
-	//(*ifp->if_ll_output)(ifp, m, smplstosa(smpls), rt);
 	(*ifp->if_bridge_output)(ifp, m, smplstosa(smpls), rt);
 done:
-	if_put(ifp);
+	refcount_release(&ifp->if_refcount);
 	rtfree(rt);
 }
 
@@ -296,13 +296,9 @@ mpls_input_local(struct rtentry *rt, struct mbuf *m)
 		return;
 	}
 
-	/* shortcut sending out the packet */
-	//if (!(ifp->if_flags & IFT_MPLS))
 	(*ifp->if_bridge_output)(ifp, m, &rt->rt_nhop->gw_sa, rt);
-	//else
-	//	(*ifp->if_ll_output)(ifp, m, rt->rt_gateway, rt);
 
-	if_put(ifp);
+	refcount_release(&ifp->if_refcount);
 }
 
 struct mbuf *
@@ -356,11 +352,11 @@ mpls_do_error(struct mbuf *m, int type, int code, int destmtu)
 	struct sockaddr_mpls sa_mpls;
 	struct sockaddr_mpls *smpls;
 	struct rtentry *rt = NULL;
+	struct route_nhop_data rnd;
 	struct shim_hdr *shim;
-	struct in_ifaddr *ia;
 	struct icmp *icp;
 	struct ip *ip;
-	int nstk, error;
+	int nstk;
 
 	for (nstk = 0; nstk < MPLS_INKERNEL_LOOP_MAX; nstk++) {
 		if (m->m_len < sizeof(*shim) &&
@@ -396,29 +392,15 @@ mpls_do_error(struct mbuf *m, int type, int code, int destmtu)
 		smpls->smpls_len = sizeof(*smpls);
 		smpls->smpls_label = shim->shim_label & MPLS_LABEL_MASK;
 
-		rt = rtalloc(smplstosa(smpls), RT_RESOLVE, 0);
+		rt = fib_mpls_lookup_rt(0, smplstosa(smpls), 0, &rnd);
 		if (rt == NULL) {
 			rtfree(rt);
 			/* no entry for this label */
 			m_freem(m);
 			return (NULL);
 		}
-		if (rt->rt_ifa->ifa_addr->sa_family == AF_INET)
-			ia = ifatoia(rt->rt_ifa);
-		else {
-			/* XXX this needs fixing, if the MPLS is on an IP
-			 * less interface we need to find some other IP to
-			 * use as source.
-			 */
-			rtfree(rt);
-			m_freem(m);
-			return (NULL);
-		}
-		/* It is safe to dereference ``ia'' iff ``rt'' is valid. */
-		error = icmp_reflect(m, NULL, ia);
+		icmp_reflect(m);
 		rtfree(rt);
-		if (error)
-			return (NULL);
 
 		ip = mtod(m, struct ip *);
 		/* stuff to fix up which is normally done in ip_output */

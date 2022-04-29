@@ -182,7 +182,6 @@ SYSCTL_INT(_net_inet_icmp, OID_AUTO, error_keeptags, CTLFLAG_VNET | CTLFLAG_RW,
 int	icmpprintfs = 0;
 #endif
 
-static void	icmp_reflect(struct mbuf *);
 static void	icmp_send(struct mbuf *, struct mbuf *);
 static int	icmp_verify_redirect_gateway(struct sockaddr_in *,
     struct sockaddr_in *, struct sockaddr_in *, u_int);
@@ -208,7 +207,7 @@ kmod_icmpstat_inc(int statnum)
  * in response to bad packet ip.
  */
 void
-icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
+icmp_do_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 {
 	struct ip *oip, *nip;
 	struct icmp *icp;
@@ -397,10 +396,22 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) -
 	if (V_error_keeptags)
 		m_tag_copy_chain(m, n, M_NOWAIT);
 
-	icmp_reflect(m);
+	m_freem(n);
+	return (m);
 
 freeit:
 	m_freem(n);
+	return (NULL);
+}
+
+void
+icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
+{
+	struct mbuf *m;
+
+	m = icmp_do_error(n, type, code, dest, mtu);
+	if (m != NULL)
+		icmp_reflect(m);
 }
 
 /*
@@ -760,7 +771,7 @@ freeit:
 /*
  * Reflect the ip packet back to the source
  */
-static void
+void
 icmp_reflect(struct mbuf *m)
 {
 	struct ip *ip = mtod(m, struct ip *);
@@ -933,6 +944,58 @@ match:
 done:
 	if (opts)
 		(void)m_free(opts);
+}
+
+int
+icmp_do_exthdr(struct mbuf *m, u_int16_t class, u_int8_t ctype, void *buf,
+    size_t len)
+{
+	struct ip *ip = mtod(m, struct ip *);
+	int hlen, off;
+	struct mbuf *n;
+	struct icmp *icp;
+	struct icmp_ext_hdr *ieh;
+	struct {
+		struct icmp_ext_hdr	ieh;
+		struct icmp_ext_obj_hdr	ieo;
+	} hdr;
+
+	hlen = ip->ip_hl << 2;
+	icp = (struct icmp *)(mtod(m, caddr_t) + hlen);
+	if (icp->icmp_type != ICMP_TIMXCEED && icp->icmp_type != ICMP_UNREACH &&
+	    icp->icmp_type != ICMP_PARAMPROB)
+		/* exthdr not supported */
+		return (0);
+
+	if (icp->icmp_length != 0)
+		/* exthdr already present, giving up */
+		return (0);
+
+	/* the actual offset starts after the common ICMP header */
+	hlen += ICMP_MINLEN;
+	/* exthdr must start on a word boundary */
+	off = roundup(ntohs(ip->ip_len) - hlen, sizeof(u_int32_t));
+	/* ... and at an offset of ICMP_EXT_OFFSET or bigger */
+	off = max(off, ICMP_EXT_OFFSET);
+	icp->icmp_length = off / sizeof(u_int32_t);
+
+	memset(&hdr, 0, sizeof(hdr));
+	hdr.ieh.ieh_version = ICMP_EXT_HDR_VERSION;
+	hdr.ieo.ieo_length = htons(sizeof(struct icmp_ext_obj_hdr) + len);
+	hdr.ieo.ieo_cnum = class;
+	hdr.ieo.ieo_ctype = ctype;
+
+	if (m_copyback(m, hlen + off, sizeof(hdr), &hdr, M_NOWAIT) ||
+	    m_copyback(m, hlen + off + sizeof(hdr), len, buf, M_NOWAIT)) {
+		m_freem(m);
+		return (ENOBUFS);
+	}
+
+	/* calculate checksum */
+	n = m_getptr(m, hlen + off, &off);
+	if (n == NULL)
+		panic("icmp_do_exthdr: m_getptr failure");
+	ieh = (struct icmp_ext_hdr *)(mtod(n, caddr_t) + off);
 }
 
 /*

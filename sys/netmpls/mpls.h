@@ -152,10 +152,9 @@ struct ifmpwreq {
 #define MPLS_LABEL2SHIM(_l)	(htonl((_l) << MPLS_LABEL_OFFSET))
 #define MPLS_SHIM2LABEL(_s)	(ntohl((_s)) >> MPLS_LABEL_OFFSET)
 
-extern int		mpls_defttl;
-extern int		mpls_mapttl_ip;
-extern int		mpls_mapttl_ip6;
-
+extern int	mpls_defttl;
+extern int	mpls_mapttl_ip;
+extern int	mpls_mapttl_ip6;
 
 struct mbuf	*mpls_shim_pop(struct mbuf *);
 struct mbuf	*mpls_shim_swap(struct mbuf *, struct rt_mpls *);
@@ -175,6 +174,7 @@ struct rtentry *	fib_mpls_lookup_rt(uint32_t fibnum,
 		    uint32_t flags,
 		    struct route_nhop_data *rnd);
 
-int in4_cksum(struct mbuf *, u_int8_t, int, int);
+uint16_t	ip_randomid(void);
+int 		in4_cksum(struct mbuf *, u_int8_t, int, int);
 
 #endif /* _KERNEL */
