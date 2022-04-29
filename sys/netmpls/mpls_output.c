@@ -55,7 +55,7 @@ mpls_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	if (rt == NULL || (dst->sa_family != AF_INET &&
 	    dst->sa_family != AF_INET6 && dst->sa_family != AF_MPLS)) {
-		if (!ISSET(ifp->if_xflags, IFXF_MPLS))
+		if (!(ifp->if_flags & IFT_MPLS))
 			return (ifp->if_output(ifp, m, dst, rt));
 		else
 			return (ifp->if_ll_output(ifp, m, dst, rt));
@@ -75,7 +75,7 @@ mpls_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	rt_mpls = (struct rt_mpls *)rt->rt_llinfo;
 	if (rt_mpls == NULL || (rt->rt_flags & RTF_MPLS) == 0) {
 		/* no MPLS information for this entry */
-		if (!ISSET(ifp->if_xflags, IFXF_MPLS)) {
+		if (!(ifp->if_flags & IFT_MPLS)) {
 #ifdef MPLS_DEBUG
 			printf("MPLS_DEBUG: interface not mpls enabled\n");
 #endif
@@ -124,7 +124,7 @@ mpls_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #endif
 
 	/* Output iface is not MPLS-enabled */
-	if (!ISSET(ifp->if_xflags, IFXF_MPLS)) {
+	if (!(ifp->if_flags & IFT_MPLS)) {
 #ifdef MPLS_DEBUG
 		printf("MPLS_DEBUG: interface not mpls enabled\n");
 #endif

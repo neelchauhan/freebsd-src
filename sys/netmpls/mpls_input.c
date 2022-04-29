@@ -57,7 +57,7 @@ mpls_input(struct ifnet *ifp, struct mbuf *m)
 	uint8_t ttl;
 	int hasbos;
 
-	if (!ISSET(ifp->if_xflags, IFXF_MPLS)) {
+	if (!(ifp->if_flags & IFT_MPLS)) {
 		m_freem(m);
 		return;
 	}
@@ -225,7 +225,7 @@ do_v6:
 		}
 
 		/* shortcut sending out the packet */
-		if (!ISSET(ifp->if_xflags, IFXF_MPLS))
+		if (!(ifp->if_flags & IFT_MPLS))
 			(*ifp->if_output)(ifp, m, rt->rt_gateway, rt);
 		else
 			(*ifp->if_ll_output)(ifp, m, rt->rt_gateway, rt);
@@ -262,7 +262,7 @@ do_v6:
 #endif
 
 	/* Output iface is not MPLS-enabled */
-	if (!ISSET(ifp->if_xflags, IFXF_MPLS)) {
+	if (!(ifp->if_flags & IFT_MPLS)) {
 #ifdef MPLS_DEBUG
 		printf("MPLS_DEBUG: interface %s not mpls enabled\n",
 		    ifp->if_xname);
@@ -289,7 +289,7 @@ mpls_input_local(struct rtentry *rt, struct mbuf *m)
 	}
 
 	/* shortcut sending out the packet */
-	if (!ISSET(ifp->if_xflags, IFXF_MPLS))
+	if (!(ifp->if_xflags & IFT_MPLS))
 		(*ifp->if_output)(ifp, m, rt->rt_gateway, rt);
 	else
 		(*ifp->if_ll_output)(ifp, m, rt->rt_gateway, rt);
