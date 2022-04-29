@@ -24,16 +24,20 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_types.h>
 #include <net/route.h>
 
 #include <netmpls/mpls.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip_var.h>
 
 #ifdef INET6
 #include <netinet/ip6.h>
 #endif
+
+#include <machine/in_cksum.h>
 
 #ifdef MPLS_DEBUG
 #define MPLS_LABEL_GET(l)	((ntohl((l) & MPLS_LABEL_MASK)) >> MPLS_LABEL_OFFSET)
@@ -55,10 +59,7 @@ mpls_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	if (rt == NULL || (dst->sa_family != AF_INET &&
 	    dst->sa_family != AF_INET6 && dst->sa_family != AF_MPLS)) {
-		if (!(ifp->if_flags & IFT_MPLS))
-			return (ifp->if_output(ifp, m, dst, rt));
-		else
-			return (ifp->if_ll_output(ifp, m, dst, rt));
+		return (ifp->if_bridge_output(ifp, m, dst, rt));
 	}
 
 	/* need to calculate checksums now if necessary */
@@ -72,8 +73,8 @@ mpls_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	ttl = mpls_getttl(m, dst->sa_family);
 
-	rt_mpls = (struct rt_mpls *)rt->rt_llinfo;
-	if (rt_mpls == NULL || (rt->rt_flags & RTF_MPLS) == 0) {
+	rt_mpls = (struct rt_mpls *)rt->rt_nhop->nh_prepend;
+	if (rt_mpls == NULL || (nhop_get_rtflags(rt->rt_nhop) & RTF_MPLS) == 0) {
 		/* no MPLS information for this entry */
 		if (!(ifp->if_flags & IFT_MPLS)) {
 #ifdef MPLS_DEBUG
@@ -83,7 +84,7 @@ mpls_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			goto bad;
 		}
 
-		return (ifp->if_ll_output(ifp, m, dst, rt));
+		return (ifp->if_bridge_output(ifp, m, dst, rt));
 	}
 
 	/* to be honest here only the push operation makes sense */
@@ -136,7 +137,7 @@ mpls_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	m->m_flags &= ~(M_BCAST | M_MCAST);
 
 	smpls->smpls_label = shim->shim_label & MPLS_LABEL_MASK;
-	error = ifp->if_ll_output(ifp, m, smplstosa(smpls), rt);
+	error = ifp->if_bridge_output(ifp, m, smplstosa(smpls), rt);
 	return (error);
 bad:
 	m_freem(m);
@@ -151,11 +152,12 @@ mpls_do_cksum(struct mbuf *m)
 
 	in_proto_cksum_out(m, NULL);
 
-	if (m->m_pkthdr.csum_flags & M_IPV4_CSUM_OUT) {
+	/* XXX: Is CSUM_IP even the correct one to use here? */
+	if (m->m_pkthdr.csum_flags & CSUM_IP) {
 		ip = mtod(m, struct ip *);
 		hlen = ip->ip_hl << 2;
 		ip->ip_sum = in_cksum(m, hlen);
-		m->m_pkthdr.csum_flags &= ~M_IPV4_CSUM_OUT;
+		m->m_pkthdr.csum_flags &= ~CSUM_IP;
 	}
 }
 

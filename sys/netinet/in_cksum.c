@@ -189,7 +189,7 @@ in_cksumdata(const void *buf, int len)
 #define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; (void)ADDCARRY(sum);}
 
 int
-in_cksum_mbuf(struct mbuf *m, u_int8_t nxt, int off, int len)
+in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len)
 {
 	union {
 		struct ipovly ipov;

@@ -1063,6 +1063,53 @@ in_delayed_cksum(struct mbuf *m)
 		*(u_short *)mtodo(m, offset) = csum;
 }
 
+void
+in_proto_cksum_out(struct mbuf *m, struct ifnet *ifp)
+{
+	struct ip *ip = mtod(m, struct ip *);
+
+	/* some hw and in_delayed_cksum need the pseudo header cksum */
+	if (m->m_pkthdr.csum_flags &
+	    (CSUM_IP_TCP|CSUM_IP_UDP|CSUM_IP_ICMP)) {
+		u_int16_t csum = 0, offset;
+
+		offset = ip->ip_hl << 2;
+		if (m->m_pkthdr.csum_flags & (CSUM_IP_TCP|CSUM_IP_UDP))
+			csum = in_cksum_phdr(ip->ip_src.s_addr,
+			    ip->ip_dst.s_addr, htonl(ntohs(ip->ip_len) -
+			    offset + ip->ip_p));
+		if (ip->ip_p == IPPROTO_TCP)
+			offset += offsetof(struct tcphdr, th_sum);
+		else if (ip->ip_p == IPPROTO_UDP)
+			offset += offsetof(struct udphdr, uh_sum);
+		else if (ip->ip_p == IPPROTO_ICMP)
+			offset += offsetof(struct icmp, icmp_cksum);
+		if ((offset + sizeof(u_int16_t)) > m->m_len)
+			m_copyback(m, offset, sizeof(csum), &csum, M_NOWAIT);
+		else
+			*(u_int16_t *)(mtod(m, caddr_t) + offset) = csum;
+	}
+
+	if (m->m_pkthdr.csum_flags & CSUM_IP_TCP) {
+		if (!in_ifcap_cksum(m, ifp, IFCAP_CSUM_TCPv4) ||
+		    ip->ip_hl != 5) {
+			tcpstat_inc(tcps_outswcsum);
+			in_delayed_cksum(m);
+			m->m_pkthdr.csum_flags &= ~M_TCP_CSUM_OUT; /* Clear */
+		}
+	} else if (m->m_pkthdr.csum_flags & CSUM_IP_UDP) {
+		if (!in_ifcap_cksum(m, ifp, IFCAP_CSUM_UDPv4) ||
+		    ip->ip_hl != 5) {
+			udpstat_inc(udps_outswcsum);
+			in_delayed_cksum(m);
+			m->m_pkthdr.csum_flags &= ~M_UDP_CSUM_OUT; /* Clear */
+		}
+	} else if (m->m_pkthdr.csum_flags & M_ICMP_CSUM_OUT) {
+		in_delayed_cksum(m);
+		m->m_pkthdr.csum_flags &= ~M_ICMP_CSUM_OUT; /* Clear */
+	}
+}
+
 /*
  * IP socket option processing.
  */

@@ -412,7 +412,7 @@ mpls_do_error(struct mbuf *m, int type, int code, int destmtu)
 		/* stolen from icmp_send() */
 		icp = (struct icmp *)(mtod(m, caddr_t) + sizeof(*ip));
 		icp->icmp_cksum = 0;
-		icp->icmp_cksum = in_cksum_mbuf(m, 0, sizeof(*ip),
+		icp->icmp_cksum = in4_cksum(m, 0, sizeof(*ip),
 		    ntohs(ip->ip_len) - sizeof(*ip));
 
 		break;

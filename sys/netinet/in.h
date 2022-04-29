@@ -660,12 +660,12 @@ struct in_ifaddr;
 int	 in_broadcast(struct in_addr, struct ifnet *);
 int	 in_ifaddr_broadcast(struct in_addr, struct in_ifaddr *);
 int	 in_canforward(struct in_addr);
-int	 in_cksum_mbuf(struct mbuf *m, u_int8_t nxt, int off, int len);
 int	 in_localaddr(struct in_addr);
 bool	 in_localip(struct in_addr);
 bool	 in_localip_fib(struct in_addr, uint16_t);
 int	 in_ifhasaddr(struct ifnet *, struct in_addr);
 struct in_ifaddr *in_findlocal(uint32_t, bool);
+int	 in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
 int	 inet_aton(const char *, struct in_addr *); /* in libkern */
 char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
 char	*inet_ntop(int, const void *, char *, socklen_t); /* in libkern */

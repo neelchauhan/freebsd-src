@@ -992,7 +992,7 @@ icmp_do_exthdr(struct mbuf *m, u_int16_t class, u_int8_t ctype, void *buf,
 	if (n == NULL)
 		panic("icmp_do_exthdr: m_getptr failure");
 	ieh = (struct icmp_ext_hdr *)(mtod(n, caddr_t) + off);
-	ieh->ieh_cksum = in_cksum_mbuf(n, 0, off, sizeof(hdr) + len);
+	ieh->ieh_cksum = in4_cksum(n, 0, off, sizeof(hdr) + len);
 
 	ip->ip_len = htons(m->m_pkthdr.len);
 

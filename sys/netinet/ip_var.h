@@ -250,6 +250,8 @@ VNET_DECLARE(struct pfil_head *, inet_pfil_head);
 #define	PFIL_INET_NAME		"inet"
 
 void	in_delayed_cksum(struct mbuf *m);
+void	in_proto_cksum_out(struct mbuf *m, struct ifnet *ifp);
+
 
 /* Hooks for ipfw, dummynet, divert etc. Most are declared in raw_ip.c */
 /*
