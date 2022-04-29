@@ -33,13 +33,15 @@
 #ifndef _NETMPLS_MPLS_H_
 #define _NETMPLS_MPLS_H_
 
+#include <sys/types.h>
+
 /*
  * Structure of a SHIM header.
  */
 #define MPLS_LABEL_MAX		((1 << 20) - 1)
 
 struct shim_hdr {
-	u_int32_t shim_label;	/* 20 bit label, 4 bit exp & BoS, 8 bit TTL */
+	uint32_t shim_label;	/* 20 bit label, 4 bit exp & BoS, 8 bit TTL */
 };
 
 #define MPLS_HDRLEN	sizeof(struct shim_hdr)
@@ -51,9 +53,9 @@ struct shim_hdr {
  */
 
 #ifdef _KERNEL
-#define __MADDR(x)     ((u_int32_t)htonl((u_int32_t)(x)))
+#define __MADDR(x)     ((uint32_t)htonl((uint32_t)(x)))
 #else
-#define __MADDR(x)     ((u_int32_t)(x))
+#define __MADDR(x)     ((uint32_t)(x))
 #endif
 
 #define MPLS_LABEL_MASK		__MADDR(0xfffff000U)
@@ -82,17 +84,17 @@ struct shim_hdr {
  */
 
 struct sockaddr_mpls {
-	u_int8_t	smpls_len;		/* length */
-	u_int8_t	smpls_family;		/* AF_MPLS */
-	u_int16_t	smpls_pad0;
-	u_int32_t	smpls_label;		/* MPLS label */
-	u_int32_t	smpls_pad1[2];
+	uint8_t		smpls_len;		/* length */
+	uint8_t		smpls_family;		/* AF_MPLS */
+	uint16_t	smpls_pad0;
+	uint32_t	smpls_label;		/* MPLS label */
+	uint32_t	smpls_pad1[2];
 };
 
 struct rt_mpls {
-	u_int32_t	mpls_label;
-	u_int8_t	mpls_operation;
-	u_int8_t	mpls_exp;
+	uint32_t	mpls_label;
+	uint8_t		mpls_operation;
+	uint8_t		mpls_exp;
 };
 
 #define MPLS_OP_LOCAL		0x0
@@ -154,13 +156,18 @@ struct mbuf	*mpls_shim_pop(struct mbuf *);
 struct mbuf	*mpls_shim_swap(struct mbuf *, struct rt_mpls *);
 struct mbuf	*mpls_shim_push(struct mbuf *, struct rt_mpls *);
 
-struct mbuf	*mpls_ip_adjttl(struct mbuf *, u_int8_t);
+struct mbuf	*mpls_ip_adjttl(struct mbuf *, uint8_t);
 #ifdef INET6
-struct mbuf	*mpls_ip6_adjttl(struct mbuf *, u_int8_t);
+struct mbuf	*mpls_ip6_adjttl(struct mbuf *, uint8_t);
 #endif
 
 int		 mpls_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *);
 void		 mpls_input(struct ifnet *, struct mbuf *);
+
+struct rtentry *	fib_mpls_lookup_rt(uint32_t fibnum,
+		    struct in_addr dst,
+		    uint32_t flags,
+		    struct route_nhop_data *rnd)
 
 #endif /* _KERNEL */

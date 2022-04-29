@@ -73,7 +73,7 @@ mpls_shim_swap(struct mbuf *m, struct rt_mpls *rt_mpls)
 
 	/* swap exp : XXX exp override */
 	{
-		u_int32_t	t;
+		uint32_t	t;
 
 		shim->shim_label &= ~MPLS_EXP_MASK;
 		t = rt_mpls->mpls_exp << MPLS_EXP_OFFSET;

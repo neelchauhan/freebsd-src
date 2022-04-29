@@ -40,7 +40,7 @@
 #endif
 
 void		mpls_do_cksum(struct mbuf *);
-u_int8_t	mpls_getttl(struct mbuf *, sa_family_t);
+uint8_t	mpls_getttl(struct mbuf *, sa_family_t);
 
 int
 mpls_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
@@ -51,7 +51,7 @@ mpls_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct shim_hdr		*shim;
 	struct rt_mpls		*rt_mpls;
 	int			 error;
-	u_int8_t		 ttl;
+	uint8_t			 ttl;
 
 	if (rt == NULL || (dst->sa_family != AF_INET &&
 	    dst->sa_family != AF_INET6 && dst->sa_family != AF_MPLS)) {
@@ -147,7 +147,7 @@ void
 mpls_do_cksum(struct mbuf *m)
 {
 	struct ip *ip;
-	u_int16_t hlen;
+	uint16_t hlen;
 
 	in_proto_cksum_out(m, NULL);
 
@@ -159,12 +159,12 @@ mpls_do_cksum(struct mbuf *m)
 	}
 }
 
-u_int8_t
+uint8_t
 mpls_getttl(struct mbuf *m, sa_family_t af)
 {
 	struct mbuf *n;
 	int loc, off;
-	u_int8_t ttl = mpls_defttl;
+	uint8_t ttl = mpls_defttl;
 
 	/* If the AF is MPLS then inherit the TTL from the present label. */
 	if (af == AF_MPLS)

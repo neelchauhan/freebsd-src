@@ -28,6 +28,7 @@
 #include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
@@ -54,6 +55,7 @@ mpls_input(struct ifnet *ifp, struct mbuf *m)
 	struct shim_hdr	*shim;
 	struct rtentry *rt;
 	struct rt_mpls *rt_mpls;
+	struct route_nhop_data rnd;
 	uint8_t ttl;
 	int hasbos;
 
@@ -126,7 +128,7 @@ do_v4:
 					if (m == NULL)
 						return;
 				}
-				ipv4_input(ifp, m);
+				ip_input(m);
 				return;
 #ifdef INET6
 			case MPLS_LABEL_IPV6NULL:
@@ -136,7 +138,7 @@ do_v6:
 					if (m == NULL)
 						return;
 				}
-				ipv6_input(ifp, m);
+				ip_input(m);
 				return;
 #endif	/* INET6 */
 			case MPLS_LABEL_IMPLNULL:
@@ -164,7 +166,7 @@ do_v6:
 
 	ifp = NULL;
 
-	rt = rtalloc(smplstosa(smpls), RT_RESOLVE, m->m_pkthdr.ph_rtableid);
+	rt = fib_mpls_lookup_rt(m->m_pkthdr.fibnum, smplstosa(smpls), 0, &rnd)
 	if (!rtisvalid(rt)) {
 		/* no entry for this label */
 #ifdef MPLS_DEBUG
@@ -298,7 +300,7 @@ mpls_input_local(struct rtentry *rt, struct mbuf *m)
 }
 
 struct mbuf *
-mpls_ip_adjttl(struct mbuf *m, u_int8_t ttl)
+mpls_ip_adjttl(struct mbuf *m, uint8_t ttl)
 {
 	struct ip *ip;
 	uint16_t old, new;
@@ -324,7 +326,7 @@ mpls_ip_adjttl(struct mbuf *m, u_int8_t ttl)
 
 #ifdef INET6
 struct mbuf *
-mpls_ip6_adjttl(struct mbuf *m, u_int8_t ttl)
+mpls_ip6_adjttl(struct mbuf *m, uint8_t ttl)
 {
 	struct ip6_hdr *ip6;
 

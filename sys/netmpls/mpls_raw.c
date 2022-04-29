@@ -57,7 +57,7 @@ const struct sysctl_bounded_args mplsctl_vars[] = {
 };
 
 int
-mpls_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp,
+mpls_sysctl(int *name, size_t namelen, void *oldp, size_t *oldlenp, void *newp,
     size_t newlen)
 {
 	return sysctl_bounded_arr(mplsctl_vars, nitems(mplsctl_vars),
